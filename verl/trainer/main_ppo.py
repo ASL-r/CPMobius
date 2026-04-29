@@ -21,7 +21,7 @@ from verl import DataProto
 import torch
 from verl.utils.reward_score import gsm8k, math, boxed, prime
 # from verl.utils.reward_score.evaluation_utils.math_util import _last_boxed_only_string
-from verl.trainer.ppo.ray_trainer import RayPPOTrainer, RayGANTrainer
+from verl.trainer.ppo.ray_trainer import RayPPOTrainer, RayCPTrainer
 
 sys.setrecursionlimit(10000)
 
@@ -42,7 +42,7 @@ def _default_compute_score(data_source, solution_str, ground_truth):
     else:
         raise NotImplementedError(f"data_source {data_source} not supported")
 
-def _BofN_compute_score(response_dict: dict):
+def _MajorityVote_compute_score(response_dict: dict):
 
     reward_dict = {}
     max_response_counts = max(response_dict.values())
@@ -144,13 +144,13 @@ class RewardManager():
 
         return reward_tensor
     
-class BofNRewardManager():
-    """The Best of N reward manager.
+class MajorityVoteRewardManager():
+    """The Majority Vote reward manager.
     """
 
     def __init__(self, tokenizer, compute_score=None) -> None:
         self.tokenizer = tokenizer
-        self.compute_score = compute_score or _BofN_compute_score
+        self.compute_score = compute_score or _MajorityVote_compute_score
     
     def __call__(self, data: DataProto):
         """We will expand this function gradually based on the available datasets"""
@@ -297,8 +297,8 @@ def main_task(config, compute_score=None):
                                 num_examine=0,
                                 compute_score=compute_score,
                                 batched=config.trainer.get("reward_manager_batched", False))
-    elif config.reward_model.get("use_best_of_n", False):
-        print("Use Best of N reward function")
+    elif config.reward_model.get("use_majority_vote", False):
+        print("Use Majority Vote reward function")
         reward_fn = BofNRewardManager(tokenizer=tokenizer,
                                     compute_score=compute_score)
 
@@ -318,9 +318,9 @@ def main_task(config, compute_score=None):
                                 ray_worker_group_cls=ray_worker_group_cls,
                                 reward_fn=reward_fn,
                                 val_reward_fn=val_reward_fn)
-    elif config.trainer.task == 'gan':
+    elif config.trainer.task == 'cpmobius':
         proposer_tokenizer = hf_tokenizer(config.actor_rollout_ref.model.proposer_path)
-        trainer = RayGANTrainer(config=config,
+        trainer = RayCPTrainer(config=config,
                                 tokenizer=tokenizer,
                                 role_worker_mapping=role_worker_mapping,
                                 resource_pool_manager=resource_pool_manager,

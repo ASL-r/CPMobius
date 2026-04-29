@@ -1144,7 +1144,7 @@ class RayPPOTrainer(object):
                     return
 
 
-class RayGANTrainer(RayPPOTrainer):
+class RayCPTrainer(RayPPOTrainer):
 
     def __init__(
         self,
@@ -1851,7 +1851,7 @@ class RayGANTrainer(RayPPOTrainer):
 
     def fit(self):
         """
-        The training loop of GAN.
+        The training loop of CPMobius.
         """
         from verl.utils.tracking import Tracking
         from omegaconf import OmegaConf

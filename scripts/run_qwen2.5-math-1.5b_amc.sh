@@ -4,8 +4,17 @@ export VLLM_ATTENTION_BACKEND=XFORMERS
 # export WANDB_MODE="offline"
 # export WANDB_API_KEY='Your Wandb API Key'
 export SWANLAB_API_KEY='Your Swanlab API Key'
-export SWANLAB_LOG_DIR='Your Swanlab Log Directory'
 
+# Paths to set before running.
+SWANLAB_LOG_DIR='Your Swanlab Log Directory'
+VAL_FILES="Your path to validation parquet file"
+PLAYER_MODEL_PATH="Your path to Qwen2.5-Math-1.5B"
+COACH_MODEL_PATH="Your path to coach model"
+CKPT_DIR="Your Checkpoint Directory"
+
+export SWANLAB_LOG_DIR
+
+# Default training parameters
 vbs=7384
 tbs=16
 prompt_length=1024
@@ -21,14 +30,14 @@ proposer_interval=1
 repetition_penalty=1
 reward_baseline=0.5
 proposer_train_metric="val_reward"
+total_epochs=1000
 save_load_interval=15
 
 exp_name="qwen2.5-math-1.5b_amc"
 
 project_name='CPMobius'
 
-CKPT_DIR="Your Checkpoint Directory"
-mkdir -p ${CKPT_DIR}
+mkdir -p "${CKPT_DIR}"
 
 ray start --head --port=6789
 
@@ -36,15 +45,14 @@ ray start --head --port=6789
 
 python3 -Xfrozen_modules=off -m verl.trainer.main_ppo \
     algorithm.adv_estimator=grpo \
-    data.train_files=data/gsm8k/train.parquet \
-    data.val_files=Your path to amc_x10.parquet \
+    data.val_files="${VAL_FILES}" \
     data.train_batch_size=${tbs} \
     data.val_batch_size=${vbs} \
     data.max_prompt_length=${prompt_length} \
     data.max_response_length=${response_length} \
     data.return_raw_chat=True \
-    actor_rollout_ref.model.path=Your path to Qwen2.5-Math-1.5B \
-    actor_rollout_ref.model.proposer_path=Your path to coach model \
+    actor_rollout_ref.model.path="${PLAYER_MODEL_PATH}" \
+    actor_rollout_ref.model.proposer_path="${COACH_MODEL_PATH}" \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.actor.ppo_mini_batch_size=${mbs} \
@@ -78,7 +86,6 @@ python3 -Xfrozen_modules=off -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.enable_chunked_prefill=False \
     actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=1 \
     reward_model.enable=False \
-    reward_model.model.path=Qwen/Qwen2.5-Math-PRM-7B \
     reward_model.model.fsdp_config.param_offload=True \
     reward_model.micro_batch_size_per_gpu=1 \
     reward_model.use_dynamic_bsz=True \
@@ -91,18 +98,19 @@ python3 -Xfrozen_modules=off -m verl.trainer.main_ppo \
     +reward_model.format_penalty=True \
     +reward_model.format_text="\\boxed" \
     +reward_model.format_penalty_value=-1 \
-    +reward_model.use_best_of_n=True \
+    +reward_model.use_majority_vote=True \
     algorithm.kl_ctrl.kl_coef=${kl} \
     trainer.critic_warmup=0 \
     trainer.logger=['console','swanlab'] \
     trainer.project_name=${project_name} \
     trainer.experiment_name=${exp_name} \
+    trainer.default_local_dir="${CKPT_DIR}" \
     trainer.n_gpus_per_node=8 \
     trainer.nnodes=1 \
     trainer.save_freq=10 \
     trainer.test_freq=-1 \
-    trainer.total_epochs=1000 \
-    trainer.task=gan \
+    trainer.total_epochs=${total_epochs} \
+    trainer.task=cpmobius \
     +trainer.reward_manager_batched=True \
     +trainer.filter_lower_bound=0.2 \
     +trainer.filter_upper_bound=0.8 \
