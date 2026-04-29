@@ -299,7 +299,7 @@ def main_task(config, compute_score=None):
                                 batched=config.trainer.get("reward_manager_batched", False))
     elif config.reward_model.get("use_majority_vote", False):
         print("Use Majority Vote reward function")
-        reward_fn = BofNRewardManager(tokenizer=tokenizer,
+        reward_fn = MajorityVoteRewardManager(tokenizer=tokenizer,
                                     compute_score=compute_score)
 
     # Note that we always use function-based RM for validation
